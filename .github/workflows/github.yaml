@@ -1,0 +1,15 @@
+name: Triggered from Repo A
+
+on:
+  repository_dispatch:
+    types: [on-demand-test]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm trigger
+        run: |
+          echo "Triggered by Repo A"
+          echo "Payload:"
+          echo '${{ toJson(github.event.client_payload) }}'
