@@ -1,26 +1,26 @@
 stages:
   data_ingestion:
-    cmd: python -m src.data.data_ingestion
+    cmd: python -m src.data_processing.data_ingestion
     deps:
-      - src/data/data_ingestion.py
+      - src/data_processing/data_ingestion.py
     params:
       - data_ingestion.test_size
     outs:
       - data/raw
 
   data_preprocessing:
-    cmd: python -m src.data.data_preprocessing
+    cmd: python -m src.data_processing.data_preprocessing
     deps:
       - data/raw
-      - src/data/data_preprocessing.py
+      - src/data_processing/data_preprocessing.py
     outs:
       - data/interim
 
   feature_engineering:
-    cmd: python -m src.feature.feature_engineering
+    cmd: python -m src.feature_engineering.feature_engineering
     deps:
       - data/interim
-      - src/feature/feature_engineering.py
+      - src/feature_engineering/feature_engineering.py
     params:
       - feature_engineering.max_features
     outs:
@@ -28,25 +28,25 @@ stages:
       - models/vectorizer.pkl
 
   model_building:
-    cmd: python -m src.model.model_building
+    cmd: python -m src.model_creation.model_building
     deps:
       - data/processed
-      - src/model/model_building.py
+      - src/model_creation/model_building.py
     outs:
       - models/model.pkl
 
   model_evaluation:
-    cmd: python -m src.model.model_evaluation
+    cmd: python -m src.model_creation.model_evaluation
     deps:
       - models/model.pkl
-      - src/model/model_evaluation.py
+      - src/model_creation/model_evaluation.py
     metrics:
       - reports/metrics.json
     outs:
       - reports/experiment_info.json
 
   model_registration:
-    cmd: python -m src.model.register_model
+    cmd: python -m src.model_creation.register_model
     deps:
       - reports/experiment_info.json
-      - src/model/register_model.py
+      - src/model_creation/register_model.py
