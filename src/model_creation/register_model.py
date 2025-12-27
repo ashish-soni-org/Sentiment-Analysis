@@ -1,29 +1,21 @@
 import os
 import sys
 import json
-import warnings
-
 import mlflow
-import dagshub
+from mlflow.tracking import MlflowClient
+from from_root import from_root
 
 from src.logger import logging
-from src.constants import DAGSHUB_TOKEN
+from src.constants import DAGSHUB_TOKEN_ENV_KEY
 from src.exception import CustomException
 
 
 def setup_mlflow_tracking() -> None:
-    """
-    Configure MLflow tracking with DagsHub.
-
-    This method validates required environment variables and
-    sets the MLflow tracking URI for model registration.
-    """
+    """Configure MLflow tracking for model registry."""
     try:
-        dagshub_token = os.getenv(DAGSHUB_TOKEN)
+        dagshub_token = os.getenv(DAGSHUB_TOKEN_ENV_KEY)
         if not dagshub_token:
-            raise EnvironmentError(
-                "DAGSHUB_TOKEN environment variable is not set"
-            )
+            raise EnvironmentError(f"{DAGSHUB_TOKEN_ENV_KEY} environment variable is not set")
 
         os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
         os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
@@ -32,9 +24,7 @@ def setup_mlflow_tracking() -> None:
         repo_owner = "ashishsoni295work"
         repo_name = "Sentiment-Analysis"
 
-        mlflow.set_tracking_uri(
-            f"{dagshub_url}/{repo_owner}/{repo_name}.mlflow"
-        )
+        mlflow.set_tracking_uri(f"{dagshub_url}/{repo_owner}/{repo_name}.mlflow")
 
         logging.info("MLflow tracking configured with DagsHub")
 
@@ -43,91 +33,68 @@ def setup_mlflow_tracking() -> None:
 
 
 def load_model_info(file_path: str) -> dict:
-    """
-    Load MLflow run metadata from disk.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the JSON file containing run information.
-
-    Returns
-    -------
-    dict
-        Dictionary containing MLflow run ID and model path.
-    """
+    """Load MLflow run metadata."""
     try:
         with open(file_path, "r") as file:
             model_info = json.load(file)
-
         logging.info(f"Model info loaded from: {file_path}")
         return model_info
-
     except Exception as e:
         raise CustomException(e, sys) from e
 
 
-def register_model(
-    model_name: str,
-    model_info: dict
-) -> None:
+def register_model(model_name: str, model_info: dict) -> None:
     """
-    Register a trained model in the MLflow Model Registry.
-
-    This method:
-    - Registers the model using MLflow run artifacts
-    - Transitions the model version to the Staging stage
-
-    Parameters
-    ----------
-    model_name : str
-        Name under which the model will be registered.
-    model_info : dict
-        Dictionary containing run ID and model artifact path.
+    Register and transition model to Staging using MlflowClient.
+    
+    This method uses the lower-level MlflowClient to avoid 400 errors
+    associated with the high-level register_model wrapper when a model
+    name already exists.
     """
     try:
-        model_uri = (
-            f"runs:/{model_info['run_id']}/"
-            f"{model_info['model_path']}"
+        client = MlflowClient()
+        run_id = model_info['run_id']
+        model_path = model_info['model_path']
+        
+        # 1. Ensure the Registered Model exists
+        try:
+            client.create_registered_model(model_name)
+            logging.info(f"Created new registered model: {model_name}")
+        except Exception:
+            logging.info(f"Registered model '{model_name}' already exists. Proceeding to create version.")
+
+        # 2. Create the Model Version
+        # The source URI must be exactly what MLflow expects
+        source_uri = f"runs:/{run_id}/{model_path}"
+        
+        logging.info(f"Creating model version from source: {source_uri}")
+        
+        model_version = client.create_model_version(
+            name=model_name,
+            source=source_uri,
+            run_id=run_id
         )
 
-        model_version = mlflow.register_model(
-            model_uri=model_uri,
-            name=model_name
-        )
-
-        client = mlflow.tracking.MlflowClient()
+        # 3. Transition to Staging
         client.transition_model_version_stage(
             name=model_name,
             version=model_version.version,
             stage="Staging"
         )
 
-        logging.info(
-            f"Model '{model_name}' version "
-            f"{model_version.version} registered and "
-            f"transitioned to Staging"
-        )
+        logging.info(f"Model '{model_name}' version {model_version.version} registered and transitioned to Staging")
 
     except Exception as e:
         raise CustomException(e, sys) from e
 
 
 def main() -> None:
-    """
-    Execute the model registration pipeline.
-
-    This function orchestrates:
-    - MLflow and DagsHub setup
-    - Loading model run metadata
-    - Registering the trained model
-    """
+    """Execute model registration pipeline."""
     logging.info("Starting model registration")
     try:
-
         setup_mlflow_tracking()
 
-        model_info_path = "./reports/experiment_info.json"
+        model_info_path = os.path.join(from_root(), "reports", "experiment_info.json")
         model_info = load_model_info(model_info_path)
 
         model_name = "sentiment_analysis_model"
@@ -143,8 +110,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-
     from dotenv import load_dotenv
-    load_dotenv() # To load variables from .env file
-    
+    load_dotenv()
     main()

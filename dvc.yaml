@@ -23,22 +23,22 @@ stages:
       - src/feature_engineering/feature_engineering.py
     params:
       - feature_engineering.max_features
+      - feature_engineering.ngram_range
     outs:
-      - data/processed
-      - models/vectorizer.pkl
+      - data/processed/train_data.pkl
+      - data/processed/test_data.pkl
 
   model_building:
     cmd: python -m src.model_creation.model_building
     deps:
-      - data/processed
+      - data/processed/train_data.pkl
       - src/model_creation/model_building.py
-    outs:
-      - models/model.pkl
 
   model_evaluation:
     cmd: python -m src.model_creation.model_evaluation
     deps:
       - models/model.pkl
+      - data/processed/test_data.pkl
       - src/model_creation/model_evaluation.py
     metrics:
       - reports/metrics.json

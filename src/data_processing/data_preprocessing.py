@@ -2,10 +2,9 @@ import os
 import sys
 import re
 import string
-
-import numpy as np
 import pandas as pd
 from pandas import DataFrame
+from from_root import from_root
 
 import nltk
 from nltk.corpus import stopwords
@@ -18,69 +17,64 @@ from src.exception import CustomException
 class TextPreprocessor:
     """
     Handles text preprocessing operations for NLP pipelines.
-
-    This class is responsible for cleaning, normalizing, and
-    lemmatizing text data prior to feature engineering or
-    model training.
     """
 
     def __init__(self):
-        """
-        Initialize text preprocessing dependencies.
-
-        This method ensures required NLTK resources are available
-        before executing preprocessing steps.
-        """
+        """Initialize text preprocessing dependencies."""
         try:
+            # Ensure resources are downloaded
             nltk.download("wordnet", quiet=True)
             nltk.download("stopwords", quiet=True)
+            nltk.download('omw-1.4', quiet=True)
 
             self.lemmatizer = WordNetLemmatizer()
-            self.stop_words = set(stopwords.words("english"))
+            
+            # CRITICAL: Exclude negation words from the stopword list
+            # The model MUST see 'not', 'no', 'never' to understand sentiment.
+            all_stopwords = set(stopwords.words("english"))
+            negation_words = {"not", "no", "nor", "neither", "never", "none", "n't"}
+            self.stop_words = all_stopwords - negation_words
 
-            logging.info("TextPreprocessor initialized successfully")
+            logging.info("TextPreprocessor initialized (Negation words preserved)")
 
         except Exception as e:
             raise CustomException(e, sys) from e
 
     def _preprocess_text(self, text: str) -> str:
-        """
-        Apply text cleaning and normalization to a single text entry.
-
-        This method:
-        - Removes URLs and numbers
-        - Converts text to lowercase
-        - Removes punctuation and extra spaces
-        - Removes stopwords
-        - Applies lemmatization
-
-        Parameters
-        ----------
-        text : str
-            Raw text string.
-
-        Returns
-        -------
-        str
-            Cleaned and normalized text.
-        """
+        """Clean and normalize a single text entry."""
         try:
-            text = re.sub(r"https?://\S+|www\.\S+", "", text)
-            text = "".join(char for char in text if not char.isdigit())
+            # Lowercase first
             text = text.lower()
+            
+            # Remove URLs
+            text = re.sub(r"https?://\S+|www\.\S+", "", text)
+            
+            # Remove HTML tags
+            text = re.sub(r'<.*?>', '', text)
+            
+            # Handle standard contractions before punctuation removal
+            text = re.sub(r"n't", " not", text)
+            text = re.sub(r"'re", " are", text)
+            text = re.sub(r"'s", " is", text)
+            text = re.sub(r"'d", " would", text)
+            text = re.sub(r"'ll", " will", text)
+            text = re.sub(r"'ve", " have", text)
+            text = re.sub(r"'m", " am", text)
 
-            text = re.sub(
-                "[%s]" % re.escape(string.punctuation),
-                " ",
-                text
-            )
-            text = text.replace("؛", "")
+            # Keep only characters and spaces (remove digits/punctuation)
+            # We treat punctuation as space to avoid merging words
+            text = re.sub(f"[{re.escape(string.punctuation)}]", " ", text)
+            text = re.sub(r"\d+", "", text)
+            
+            # Normalize whitespace
             text = re.sub(r"\s+", " ", text).strip()
 
+            # Remove Stopwords (Preserving Negations)
             text = " ".join(
                 word for word in text.split() if word not in self.stop_words
             )
 
+            # Lemmatization
             text = " ".join(
                 self.lemmatizer.lemmatize(word) for word in text.split()
             )
@@ -91,29 +85,14 @@ class TextPreprocessor:
             raise CustomException(e, sys) from e
 
     def preprocess_dataframe(self, dataframe: DataFrame, text_column: str) -> DataFrame:
-        """
-        Apply text preprocessing to a specified column in a DataFrame.
-
-        Parameters
-        ----------
-        dataframe : DataFrame
-            Input dataset containing raw text.
-        text_column : str
-            Name of the column containing text data.
-
-        Returns
-        -------
-        DataFrame
-            DataFrame with preprocessed text.
-        """
+        """Apply text preprocessing to a specified column."""
         try:
-            logging.info(
-                f"Starting text preprocessing on column: {text_column}"
-            )
+            logging.info(f"Starting text preprocessing on column: {text_column}")
 
-            dataframe[text_column] = dataframe[text_column].apply(self._preprocess_text)
-
-            dataframe = dataframe.dropna(subset=[text_column])
+            dataframe[text_column] = dataframe[text_column].astype(str).apply(self._preprocess_text)
+            
+            # Drop rows where text might have become empty after cleaning
+            dataframe = dataframe[dataframe[text_column].str.strip() != ""]
 
             logging.info("Text preprocessing on column completed successfully")
             return dataframe
@@ -123,31 +102,29 @@ class TextPreprocessor:
 
 
 def main() -> None:
-    """
-    Execute the text preprocessing workflow.
-
-    This function:
-    - Loads raw training and testing datasets
-    - Applies text preprocessing
-    - Saves processed data to the interim directory
-    """
-    logging.info("Starting text preprocessing")
+    """Execute the text preprocessing workflow."""
+    logging.info("Starting data preprocessing pipeline")
     try:
-        train_data = pd.read_csv("./data/raw/train.csv")
-        test_data = pd.read_csv("./data/raw/test.csv")
+        base_data_path = os.path.join(from_root(), "data")
+        
+        train_path = os.path.join(base_data_path, "raw", "train.csv")
+        test_path = os.path.join(base_data_path, "raw", "test.csv")
+        
+        train_data = pd.read_csv(train_path)
+        test_data = pd.read_csv(test_path)
 
         logging.info("Raw train and test data loaded successfully")
 
         text_preprocessor = TextPreprocessor()
 
-        train_processed_data = text_preprocessor.preprocess_dataframe(dataframe=train_data, text_column="review")
-        test_processed_data = text_preprocessor.preprocess_dataframe(dataframe=test_data, text_column="review")
+        train_processed = text_preprocessor.preprocess_dataframe(dataframe=train_data, text_column="review")
+        test_processed = text_preprocessor.preprocess_dataframe(dataframe=test_data, text_column="review")
 
-        output_path = os.path.join("./data", "interim")
+        output_path = os.path.join(base_data_path, "interim")
         os.makedirs(output_path, exist_ok=True)
 
-        train_processed_data.to_csv(os.path.join(output_path, "train_processed.csv"), index=False, header=True)
-        test_processed_data.to_csv(os.path.join(output_path, "test_processed.csv"), index=False, header=True)
+        train_processed.to_csv(os.path.join(output_path, "train_processed.csv"), index=False, header=True)
+        test_processed.to_csv(os.path.join(output_path, "test_processed.csv"), index=False, header=True)
 
         logging.info(f"Processed data saved at: {output_path}")
 

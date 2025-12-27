@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analysis Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center font-sans">
+
+    <div class="w-full max-w-lg bg-gray-800 rounded-xl shadow-2xl p-8 border border-gray-700">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-500 mb-2">Sentiment Analyzer</h1>
+            <p class="text-gray-400">Powered by MLflow & Scikit-Learn</p>
+        </div>
+
+        <form action="/predict" method="post" class="space-y-6">
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-300 mb-2">Movie Review / Text</label>
+                <textarea 
+                    id="text" 
+                    name="text" 
+                    rows="4" 
+                    class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                    placeholder="Type your review here..."
+                    required
+                >{{ original_text if original_text else '' }}</textarea>
+            </div>
+            
+            <button 
+                type="submit" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg transform hover:scale-[1.02]"
+            >
+                Analyze Sentiment
+            </button>
+        </form>
+
+        {% if result %}
+        <div class="mt-8 p-6 rounded-lg border 
+            {% if result == 'Positive' %} bg-green-900/30 border-green-500 text-green-400 
+            {% elif result == 'Negative' %} bg-red-900/30 border-red-500 text-red-400 
+            {% else %} bg-gray-700 border-gray-500 text-gray-300 {% endif %}">
+            
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-semibold uppercase tracking-wider">Prediction</h2>
+                    <p class="text-2xl font-bold mt-1">{{ result }}</p>
+                </div>
+                {% if confidence %}
+                <div class="text-right">
+                    <p class="text-xs text-gray-400 uppercase">Confidence</p>
+                    <p class="text-xl font-mono">{{ confidence }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if error_message %}
+        <div class="mt-6 p-4 bg-red-900/50 border border-red-500 text-red-200 rounded-lg text-sm">
+            <strong>Error:</strong> {{ error_message }}
+        </div>
+        {% endif %}
+
+        <div class="mt-8 text-center text-xs text-gray-500">
+            <a href="/metrics" class="hover:text-blue-400 underline" target="_blank">View Prometheus Metrics</a>
+        </div>
+    </div>
+
+</body>
+</html>
