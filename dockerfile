@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY fastApi_app/ /app/
+COPY ProductionFiles/ /app/
 
 COPY models/vectorizer.pkl /app/models/vectorizer.pkl
 
