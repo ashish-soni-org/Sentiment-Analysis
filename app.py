@@ -9,7 +9,6 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from prometheus_client import Counter, Histogram, CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
 
-from src.exception import CustomException
 from src.data_processing.data_preprocessing import TextPreprocessor 
 
 # ---------------------------------------------------------------------
@@ -49,13 +48,19 @@ def check_smart_negation(text: str) -> bool:
 
 def load_local_artifacts() -> None:
     try:
+        # Check if model files exist
+        vectorizer_path = MODEL_DIR / "vectorizer.pkl"
+        model_path = MODEL_DIR / "model.pkl"
+
+        if not vectorizer_path.exists() or not model_path.exists():
+            print(f"❌ Artifacts missing in {MODEL_DIR}")
+            return
+
         ml_objects["preprocessor"] = TextPreprocessor()
         
-        vectorizer_path = MODEL_DIR / "vectorizer.pkl"
         with open(vectorizer_path, "rb") as file:
             ml_objects["vectorizer"] = pickle.load(file)
             
-        model_path = MODEL_DIR / "model.pkl"
         with open(model_path, "rb") as file:
             ml_objects["model"] = pickle.load(file)
             
@@ -67,7 +72,12 @@ def load_local_artifacts() -> None:
 # FastAPI App
 # ---------------------------------------------------------------------
 
-app = FastAPI(title="Sentiment Analysis Pro")
+# CRITICAL FIX: Add root_path parameter for NGINX proxy handling
+app = FastAPI(
+    title="Sentiment Analysis Pro",
+    root_path="/Sentiment-Analysis"
+)
+
 registry = CollectorRegistry()
 REQUEST_COUNT = Counter("app_request_count", "Total requests", ["method", "endpoint"], registry=registry)
 
@@ -83,6 +93,11 @@ async def home(request: Request):
 async def predict(request: Request, text: str = Form(...)):
     start_time = time.time()
     try:
+        if "preprocessor" not in ml_objects:
+            load_local_artifacts()
+            if "preprocessor" not in ml_objects:
+                raise Exception("Model artifacts not loaded.")
+
         # 1. Preprocess
         preprocessor = ml_objects["preprocessor"]
         clean_text = preprocessor._preprocess_text(text)
@@ -111,17 +126,20 @@ async def predict(request: Request, text: str = Form(...)):
         vectorizer = ml_objects["vectorizer"]
         model = ml_objects["model"]
         
-        features = vectorizer.transform([clean_text]) # Sparse matrix is fine here
+        features = vectorizer.transform([clean_text]) 
         ml_pred = int(model.predict(features)[0])
         
         confidence = 0.0
         if hasattr(model, "predict_proba"):
             confidence = max(model.predict_proba(features)[0])
+        elif hasattr(model, "decision_function"):
+             # Fallback confidence for SGD/SVM
+             confidence = 1.0 # Placeholder for non-probabilistic models
 
         # 4. Consensus
         if rule_prediction is not None and rule_prediction != ml_pred:
             final_pred = rule_prediction
-            conf_display = "99.00%"
+            conf_display = "99.00% (Rule Override)"
         else:
             final_pred = ml_pred
             conf_display = f"{confidence * 100:.2f}%"
@@ -144,4 +162,6 @@ if __name__ == "__main__":
     import uvicorn
     from dotenv import load_dotenv
     load_dotenv()
+    # Note: When running locally without NGINX, access via http://localhost:5000/Sentiment-Analysis/
+    # or simply remove the root_path from the URL in browser if testing directly.
     uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True, reload_excludes=["logs/*"])
