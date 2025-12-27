@@ -207,7 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 # Extras 
-sentiment-analysis
+sentiEnv
 NOTES.md
 projectflow.md
 logs

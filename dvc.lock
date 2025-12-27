@@ -90,7 +90,7 @@ stages:
     outs:
     - path: reports/experiment_info.json
       hash: md5
-      md5: 89c03b5044b5119793f9fc12101f3814
+      md5: cfedea410bcd4213b9e85cee1c074814
       size: 79
     - path: reports/metrics.json
       hash: md5
