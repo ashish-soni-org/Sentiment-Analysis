@@ -1,69 +1,202 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentiment Analysis Pro</title>
+    <meta name="description" content="Professional Movie Review Sentiment Analysis Tool powered by MLflow & Scikit-Learn">
+    <title>CineSentiment Pro</title>
+
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://images.unsplash.com">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='20' rx='2.18' ry='2.18'/%3E%3Cline x1='7' y1='2' x2='7' y2='22'/%3E%3Cline x1='17' y1='2' x2='17' y2='22'/%3E%3Cline x1='2' y1='12' x2='22' y2='12'/%3E%3Cline x1='2' y1='7' x2='7' y2='7'/%3E%3Cline x1='17' y1='17' x2='22' y2='17'/%3E%3Cline x1='17' y1='7' x2='22' y2='7'/%3E%3C/svg%3E">
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.4s ease-out forwards',
+                        'pop-in': 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                        'scroll-background': 'scrollBackground 60s linear infinite', 
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        popIn: {
+                             '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        scrollBackground: {
+                            '0%': { transform: 'translate3d(0, 0, 0)' },
+                            '100%': { transform: 'translate3d(-50%, 0, 0)' }, 
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        .gpu-accelerated {
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+            will-change: transform, opacity;
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center font-sans">
+<body class="h-full bg-gray-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-blue-500 selection:text-white">
 
-    <div class="w-full max-w-lg bg-gray-800 rounded-xl shadow-2xl p-8 border border-gray-700">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-blue-500 mb-2">Sentiment Analyzer</h1>
-            <p class="text-gray-400">Powered by MLflow & Scikit-Learn</p>
+    <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none opacity-100 dark:opacity-0 transition-opacity duration-700 ease-in-out">
+        <div class="flex w-[200%] h-full animate-scroll-background gpu-accelerated">
+            <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=60&fm=webp" 
+                 alt="" fetchpriority="high" decoding="async"
+                 class="w-1/2 h-full object-cover opacity-60 mix-blend-multiply">
+            <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=60&fm=webp" 
+                 alt="" decoding="async" loading="lazy"
+                 class="w-1/2 h-full object-cover opacity-60 mix-blend-multiply">
         </div>
+        <div class="absolute inset-0 bg-gradient-to-t from-gray-100/80 via-gray-100/40 to-gray-100/10"></div>
+    </div>
 
-        <form action="predict" method="post" class="space-y-6">
-            <div>
-                <label for="text" class="block text-sm font-medium text-gray-300 mb-2">Movie Review / Text</label>
-                <textarea 
-                    id="text" 
-                    name="text" 
-                    rows="4" 
-                    class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
-                    placeholder="Type your review here..."
-                    required
-                >{{ original_text if original_text else '' }}</textarea>
-            </div>
-            
-            <button 
-                type="submit" 
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg transform hover:scale-[1.02]"
-            >
-                Analyze Sentiment
-            </button>
-        </form>
+    <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none opacity-0 dark:opacity-100 transition-opacity duration-700 ease-in-out">
+        <div class="flex w-[200%] h-full animate-scroll-background gpu-accelerated">
+            <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=60&fm=webp" 
+                 alt="" decoding="async"
+                 class="w-1/2 h-full object-cover opacity-30 mix-blend-overlay">
+            <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=60&fm=webp" 
+                 alt="" decoding="async" loading="lazy"
+                 class="w-1/2 h-full object-cover opacity-30 mix-blend-overlay">
+        </div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/50"></div>
+    </div>
 
-        {% if result %}
-        <div class="mt-8 p-6 rounded-lg border 
-            {% if result == 'Positive' %} bg-green-900/30 border-green-500 text-green-400 
-            {% elif result == 'Negative' %} bg-red-900/30 border-red-500 text-red-400 
-            {% else %} bg-gray-700 border-gray-500 text-gray-300 {% endif %}">
-            
-            <div class="flex justify-between items-center">
-                <div>
-                    <h2 class="text-lg font-semibold uppercase tracking-wider">Prediction</h2>
-                    <p class="text-2xl font-bold mt-1">{{ result }}</p>
+    <div class="relative z-10 min-h-full flex flex-col justify-center items-center px-4 py-8 sm:px-6 lg:px-8">
+        
+        <div class="w-full max-w-md sm:max-w-lg animate-fade-in gpu-accelerated">
+            <div class="bg-white/80 dark:bg-black/60 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-xl dark:shadow-2xl border border-white/60 dark:border-white/10 p-6 sm:p-8 relative overflow-hidden transition-colors duration-500">
+                
+                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-70"></div>
+
+                <div class="text-center mb-6 sm:mb-8">
+                    <div class="inline-flex items-center justify-center p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 mb-4 transform rotate-[-5deg]">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 sm:w-8 sm:h-8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-2.25-1.313M21 7.5v2.25m0-2.25l-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3l2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75l2.25-1.313M12 21.75V19.5m0 2.25l-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m-13.5 0L3 16.5v-2.25" />
+                        </svg>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300">CineSentiment Pro</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Is the review Fresh or Rotten? AI-Powered Analysis.</p>
                 </div>
-                {% if confidence %}
-                <div class="text-right">
-                    <p class="text-xs text-gray-400 uppercase">Confidence</p>
-                    <p class="text-xl font-mono">{{ confidence }}</p>
+
+                <form action="predict" method="post" class="space-y-5 sm:space-y-6">
+                    <div>
+                        <label for="text" class="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2 pl-1">
+                            Your Movie Review
+                        </label>
+                        <div class="relative group">
+                            <div class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-200"></div>
+                            <textarea 
+                                id="text" 
+                                name="text" 
+                                rows="5" 
+                                class="relative w-full bg-white dark:bg-slate-900/90 border border-gray-300 dark:border-slate-600 rounded-xl p-4 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none shadow-sm text-sm sm:text-base leading-relaxed"
+                                placeholder="Paste the review here... e.g., 'The cinematography was stunning, but the plot fell totally flat in the third act.'"
+                                required
+                            >{{ original_text if original_text else '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        class="w-full group relative overflow-hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 sm:py-4 px-4 rounded-xl shadow-md hover:shadow-xl transform active:scale-[0.98] transition-all duration-150 flex justify-center items-center gap-2 sm:gap-3"
+                    >
+                        <span class="relative z-10 flex items-center gap-2 text-sm sm:text-base">
+                            Analyze Review
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                              <path fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                        <div class="absolute inset-0 h-full w-full scale-0 rounded-xl transition-all duration-200 group-hover:scale-100 group-hover:bg-white/10"></div>
+                    </button>
+                </form>
+
+                {% if result %}
+                <div class="mt-6 sm:mt-8 animate-pop-in">
+                    <div class="p-1 rounded-2xl bg-gradient-to-br {% if result == 'Positive' %}from-green-400 to-emerald-600 shadow-lg shadow-green-500/20{% elif result == 'Negative' %}from-red-400 to-rose-600 shadow-lg shadow-red-500/20{% else %}from-slate-400 to-slate-600{% endif %}">
+                        <div class="p-4 sm:p-5 rounded-xl bg-white/95 dark:bg-slate-800/95 flex flex-col sm:flex-row justify-between items-center gap-4 h-full">
+                            
+                            <div class="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                                <div class="flex-shrink-0 p-2 sm:p-3 rounded-full shadow-inner {% if result == 'Positive' %}bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400{% elif result == 'Negative' %}bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400{% else %}bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300{% endif %}">
+                                    {% if result == 'Positive' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 sm:w-8 sm:h-8">
+                                          <path fill-rule="evenodd" d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813A3.75 3.75 0 007.466 7.89l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.394a.75.75 0 010 1.422l-1.183.394c-.447.15-.799.5-.948.948l-.394 1.183a.75.75 0 01-1.422 0l-.394-1.183a1.5 1.5 0 00-.948-.948l-1.183-.394a.75.75 0 010-1.422l1.183-.394c.447-.15.799-.5.948-.948l.394-1.183A.75.75 0 0116.5 15z" clip-rule="evenodd" />
+                                        </svg>
+                                    {% elif result == 'Negative' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 sm:w-8 sm:h-8">
+                                          <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12 7.5a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3zM9 10.5a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 019 10.5zM15 10.5a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3a.75.75 0 01.75-.75zM9 16.5a.75.75 0 000 1.5h6a.75.75 0 000-1.5H9z" clip-rule="evenodd" opacity="0.5"/>
+                                          <path d="M13.935 2.523l-2.25 2.25a.75.75 0 001.06 1.06l2.25-2.25a.75.75 0 00-1.06-1.06zM2.523 10.064l2.25-2.25a.75.75 0 111.06 1.061l-2.25 2.25a.75.75 0 11-1.06-1.06zM2.523 13.936l2.25 2.25a.75.75 0 001.06-1.06l-2.25-2.25a.75.75 0 00-1.06 1.06zM13.935 21.477l-2.25-2.25a.75.75 0 111.06-1.06l2.25 2.25a.75.75 0 11-1.06 1.06z" />
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 sm:w-8 sm:h-8"><path d="M19.5 6h-15v12h15V6zM4.5 4.5h15A1.5 1.5 0 0121 6v12a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18V6a1.5 1.5 0 011.5-1.5z"/><path d="M6 7.5h1.5v1.5H6V7.5zM6 10.5h1.5v1.5H6v-1.5zM6 13.5h1.5v1.5H6v-1.5zM16.5 7.5H18v1.5h-1.5V7.5zM16.5 10.5H18v1.5h-1.5v-1.5zM16.5 13.5H18v1.5h-1.5v-1.5zM9 7.5h6v9H9V7.5z"/></svg>
+                                    {% endif %}
+                                </div>
+                                
+                                <div>
+                                    <h2 class="text-xs font-extrabold uppercase tracking-widest opacity-60 {% if result == 'Positive' %}text-green-700 dark:text-green-400{% elif result == 'Negative' %}text-red-700 dark:text-red-400{% else %}text-slate-600 dark:text-slate-300{% endif %}">
+                                        Verdict
+                                    </h2>
+                                    <p class="text-2xl sm:text-3xl font-black tracking-tight {% if result == 'Positive' %}text-green-600 dark:text-green-400{% elif result == 'Negative' %}text-red-600 dark:text-red-400{% else %}text-slate-700 dark:text-slate-300{% endif %}">
+                                        {{ result }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {% if confidence %}
+                            <div class="w-full sm:w-auto text-left sm:text-right border-l-2 pl-4 border-gray-200 dark:border-slate-700/50 py-1">
+                                <p class="text-xs font-bold uppercase tracking-wider opacity-60 mb-1 text-slate-500 dark:text-slate-400">
+                                    Confidence
+                                </p>
+                                <p class="text-xl sm:text-2xl font-mono font-bold text-slate-700 dark:text-slate-200">
+                                    {{ confidence }}
+                                </p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
+
+                {% if error_message %}
+                <div class="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-r-xl flex items-start gap-3 animate-fade-in">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <div class="text-sm text-red-700 dark:text-red-300 font-medium">
+                        <strong>Error:</strong> {{ error_message }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mt-8 pt-6 border-t border-gray-200 dark:border-white/10 flex justify-center">
+                    <a href="https://github.com/ashish-soni-org/Sentiment-Analysis" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+                        </svg>
+                        View Project on GitHub
+                    </a>
+                </div>
             </div>
-        </div>
-        {% endif %}
-
-        {% if error_message %}
-        <div class="mt-6 p-4 bg-red-900/50 border border-red-500 text-red-200 rounded-lg text-sm">
-            <strong>Error:</strong> {{ error_message }}
-        </div>
-        {% endif %}
-
-        <div class="mt-8 text-center text-xs text-gray-500">
-            <a href="metrics" class="hover:text-blue-400 underline" target="_blank">View Prometheus Metrics</a>
         </div>
     </div>
 
