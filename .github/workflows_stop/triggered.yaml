@@ -1,0 +1,193 @@
+name: On Demand Application Build
+
+on:
+  repository_dispatch:
+    types: [event-on-demand-build]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  OWNER: "ashish-soni-org"
+  CLIENT_REPO: "Terraform-Ansible"
+  SERVICES_REQUIRED: "ECR"
+  ACTION_TYPE: "SERVICE_REQUEST"
+
+jobs:
+  get_required_services:
+    name: Get the required services
+    runs-on: self-hosted
+    outputs:
+      services: ${{ steps.service_check.outputs.required_services }}
+      needs_provisioning: ${{ steps.service_check.outputs.needs_provisioning }}
+    
+    steps:
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION_NAME }}
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3 botocore
+
+      - name: Check Required Services Availability
+        id: service_check
+        run: python .github/workflows/secretsManager.py
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION_NAME }}
+          SECRET_FILE_NAME: ${{ secrets.SECRETS_FILE_NAME }}
+          ACTION_TYPE: ${{ env.ACTION_TYPE }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          SERVICES: ${{ env.SERVICES_REQUIRED }}
+      
+      - name: Cleanup Workspace
+        if: always()
+        run: |
+          echo "Cleaning up workspace..."
+          rm -rf .[^.]*
+
+  request_service:
+    name: Request for Required Service
+    needs: get_required_services
+    if: needs.get_required_services.outputs.needs_provisioning == 'true'
+    runs-on: self-hosted
+    
+    steps:
+      - name: Generate Token to Request Service
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ env.OWNER }}
+          repositories: ${{ env.CLIENT_REPO }}
+
+      - name: Dispatch Provisioning Event
+        run: |
+          # 1. Parse SERVICES_REQUIRED (e.g., "ECR;S3") into a JSON Array of service objects
+          # Target structure per item: { "type": "ECR", "count": 1, "instances": [{"name": "repo-name"}] }
+          
+          IFS=';' read -ra SERVICES <<< "${{ env.SERVICES_REQUIRED }}"
+          JSON_OBJECTS=()
+          
+          for service in "${SERVICES[@]}"; do
+            # Only process supported standalone types
+            if [[ "$service" == "ECR" || "$service" == "S3" ]]; then
+              JSON_OBJECTS+=("{\"type\": \"$service\", \"count\": 1, \"instances\": [{\"name\": \"${{ github.event.repository.name }}\"}]}")
+            fi
+          done
+          
+          # Join array with commas
+          SERVICE_ARRAY=$(IFS=, ; echo "${JSON_OBJECTS[*]}")
+
+          # 2. Dispatch payload to File 2
+          curl -X POST \
+          -H "Authorization: Bearer ${{ steps.app-token.outputs.token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ env.OWNER }}/${{ env.CLIENT_REPO }}/dispatches \
+          -d @- <<EOF
+          {
+            "event_type": "event-on-demand-services",
+            "client_payload": {
+              "repo": "${{ github.event.repository.name }}",
+              "services": [ $SERVICE_ARRAY ]
+            }
+          }
+          EOF
+      
+      - name: Cleanup Workspace
+        if: always()
+        run: |
+          echo "Cleaning up workspace..."
+          rm -rf .[^.]*
+
+  on_demand_build:
+    name: Build and Push Image
+    needs: get_required_services
+    if: fromJson(needs.get_required_services.outputs.services)['ECR'] != ''
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION_NAME }}
+      
+      # FIX: Ensure the runner user can access the Docker socket
+      - name: Fix Docker Socket Permissions
+        run: |
+          sudo chmod 666 /var/run/docker.sock
+
+      - name: Login to Amazon ECR
+        id: login_ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        run: |
+          docker system prune -af
+          docker build --no-cache -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        env:
+          ECR_REGISTRY: ${{ steps.login_ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ fromJson(needs.get_required_services.outputs.services)['ECR'] }}
+          IMAGE_TAG: latest
+      
+      - name: Cleanup Workspace
+        if: always()
+        run: |
+          echo "Cleaning up workspace..."
+          rm -rf .[^.]*
+
+  deploy_project:
+    name: Trigger Deployment
+    runs-on: self-hosted
+    needs: on_demand_build
+    steps:
+      - name: Generate Token to Trigger Deploy
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ env.OWNER }}
+          repositories: ${{ env.CLIENT_REPO }}
+
+      - name: Dispatch Deployment Event
+        run: |
+            curl -X POST \
+            -H "Authorization: Bearer ${{ steps.app-token.outputs.token }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ env.OWNER }}/${{ env.CLIENT_REPO }}/dispatches \
+            -d @- <<EOF
+            {
+              "event_type": "event-on-demand-deployment",
+              "client_payload": {
+                "repo": "${{ github.event.repository.name }}",
+                "endpoint": "/${{ github.event.repository.name }}"
+              }
+            }
+            EOF
+      
+      - name: Cleanup Workspace
+        if: always()
+        run: |
+          echo "Cleaning up workspace..."
+          rm -rf .[^.]*

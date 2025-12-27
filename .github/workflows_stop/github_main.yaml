@@ -1,6 +1,6 @@
 name: CI Pipeline
 
-on: push
+on: fork
 
 jobs:
   project-testing:
