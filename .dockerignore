@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+.git
+.gitignore
+.env
+data/
+logs/
+notebooks/
+reports/
+dvc.yaml
+dvc.lock
+params.yaml

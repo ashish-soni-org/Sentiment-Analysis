@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+scikit-learn
+pandas
+numpy
+nltk
+from-root
+prometheus-client
+python-multipart
+python-dotenv
+mlflow
+dagshub
