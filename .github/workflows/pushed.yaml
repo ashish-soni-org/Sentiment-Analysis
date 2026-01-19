@@ -10,7 +10,7 @@ permissions:
 
 env:
   OWNER: "ashish-soni-org"
-  CLIENT_REPO: "Terraform-Ansible"
+  CLIENT_REPO: "Infrastructure-Manager"
   SERVICES_REQUIRED: "ECR"
   ACTION_TYPE: "SERVICE_REQUEST"
 
